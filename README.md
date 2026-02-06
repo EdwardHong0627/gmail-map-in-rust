@@ -107,6 +107,20 @@ Share this repository. The user runs `cargo run`.
 2.  Share the binary at `target/release/gmail-mcp-server`.
 3.  Recipient sets env vars and runs it.
 
+### Option 3: Docker
+1.  **Build**:
+    ```bash
+    docker build -t gmail-mcp-server .
+    ```
+2.  **Run**:
+    ```bash
+    docker run -i \
+      -e GMAIL_USER="your@gmail.com" \
+      -e GMAIL_APP_PASSWORD="xxxx" \
+      gmail-mcp-server
+    ```
+    *Note: The `-i` flag is crucial as the server reads from stdin.*
+
 ## Troubleshooting
 
 - **Authentication Fails**: Ensure `GMAIL_APP_PASSWORD` is correct and does NOT include spaces (though `lettre` might handle them, it's safer to remove/quote them). Ensure 2FA is on.
