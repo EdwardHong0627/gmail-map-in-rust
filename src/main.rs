@@ -34,18 +34,11 @@ struct JsonRpcError {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize Gmail client (lazy init or init on cleanup? For now, let's init on start or first call)
-    // To allow capabilities listing without auth, we might want to delay auth.
-    // However, simplest is to try to init. If it fails, we might just panic or log.
-    // Given it's a CLI tool, logging to stderr is fine.
+    eprintln!("Starting Gmail MCP Server (SMTP Version)...");
     
-    eprintln!("Starting Gmail MCP Server...");
-    
-    // Check for credentials availability:
-    // 1. GOOGLE_CLIENT_SECRET environment variable (raw JSON content)
-    // 2. client_secret.json file (in current directory)
-    if std::env::var("GOOGLE_CLIENT_SECRET").is_err() && !std::path::Path::new("client_secret.json").exists() {
-        eprintln!("Warning: client_secret.json not found and GOOGLE_CLIENT_SECRET not set. Authentication interactions will fail.");
+    // Check for credentials availability
+    if std::env::var("GMAIL_USER").is_err() || std::env::var("GMAIL_APP_PASSWORD").is_err() {
+        eprintln!("Warning: GMAIL_USER or GMAIL_APP_PASSWORD not set. Email sending will fail.");
     }
 
     let stdin = tokio::io::stdin();
@@ -177,15 +170,21 @@ async fn handle_tool_call(params: Option<Value>) -> Result<Value, JsonRpcError> 
         let body = args.get("body").and_then(|s| s.as_str()).unwrap_or("");
         let attachment_path = args.get("attachment_path").and_then(|s| s.as_str());
 
-        // Initialize Gmail client for every call (simple approach).
-        // It uses cached tokens ("token_cache.json") so subsequent calls don't require re-auth.
-        let client = GmailClient::new("client_secret.json").await.map_err(|e| JsonRpcError {
+        // Get credentials from env
+        let username = std::env::var("GMAIL_USER").map_err(|_| JsonRpcError {
             code: -32000,
-            message: format!("Failed to init Gmail client: {}", e),
+            message: "GMAIL_USER env var not set".to_string(),
+            data: None,
+        })?;
+        let password = std::env::var("GMAIL_APP_PASSWORD").map_err(|_| JsonRpcError {
+            code: -32000,
+            message: "GMAIL_APP_PASSWORD env var not set".to_string(),
             data: None,
         })?;
 
-        let msg_id = client.send_email(to, subject, body, attachment_path).await.map_err(|e| JsonRpcError {
+        let client = GmailClient::new(username, password);
+
+        let result = client.send_email(to, subject, body, attachment_path).await.map_err(|e| JsonRpcError {
             code: -32000,
             message: format!("Failed to send email: {}", e),
             data: None,
@@ -195,7 +194,7 @@ async fn handle_tool_call(params: Option<Value>) -> Result<Value, JsonRpcError> 
             "content": [
                 {
                     "type": "text",
-                    "text": format!("Email sent successfully. Message ID: {}", msg_id)
+                    "text": format!("Email sent successfully. Result: {}", result)
                 }
             ]
         }))

@@ -11,22 +11,27 @@ A local Model Context Protocol (MCP) server that enables sending emails with att
 ## Prerequisites
 
 - **Rust**: Ensure you have Rust installed (`cargo`).
-- **Google Cloud Credentials**:
-    1.  Go to the [Google Cloud Console](https://console.cloud.google.com/).
-    2.  Create a project and enable the **Gmail API**.
-    3.  Create OAuth Credentials (type **Desktop App**).
-    4.  Download the JSON file.
+- **Gmail Account**:
+    1.  Enable **2-Step Verification** on your Google Account.
+    2.  Generate an **[App Password](https://support.google.com/accounts/answer/185833)**.
+        - Go to your Google Account > Security.
+        - Under "Signing in to Google," select **App passwords**.
+        - Generate a new password (e.g., name it "MCP Server").
+        - **Copy the 16-character password**.
 
 ## Configuration
 
-You can provide the Google Client Secret in one of two ways:
+This server requires two environment variables to be set:
 
-1.  **File**: Rename the downloaded JSON file to `client_secret.json` and place it in the root directory of the server (next to `Cargo.toml`).
-2.  **Environment Variable**: Set `GOOGLE_CLIENT_SECRET` to the content of the JSON file.
+- `GMAIL_USER`: Your Gmail address (e.g., `user@gmail.com`).
+- `GMAIL_APP_PASSWORD`: The 16-character App Password you generated (without spaces).
 
-    ```bash
-    export GOOGLE_CLIENT_SECRET='{"installed":{"client_id":"...","client_secret":"..."}}'
-    ```
+### Example
+
+```bash
+export GMAIL_USER="your-email@gmail.com"
+export GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"
+```
 
 ## Installation
 
@@ -43,11 +48,14 @@ Run the server via Cargo or the compiled binary:
 cargo run
 ```
 
-### MC Protocol
+### Manual Testing (Interactive)
 
-The server communicates via JSON-RPC over Standard Input/Output.
+The server communicates via **JSON-RPC** over Standard Input/Output. You generally do not run it manually unless testing.
 
-#### Request Example (Send Email)
+To test it manually:
+
+1.  Run `cargo run`.
+2.  **Paste** the following JSON blob into the running terminal and hit Enter:
 
 ```json
 {
@@ -66,13 +74,13 @@ The server communicates via JSON-RPC over Standard Input/Output.
 }
 ```
 
-## Integration with MCP Clients
+3.  The server should respond with a JSON string indicating success or failure.
 
-To use this server with an MCP client (like Claude Desktop), you need to configure it to run the executable.
+## Integration with MCP Clients
 
 ### Example: Claude Desktop Configuration
 
-Add the following to your `claude_desktop_config.json` (usually found in `~/Library/Application Support/Claude/` on macOS):
+Add the following to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -81,32 +89,25 @@ Add the following to your `claude_desktop_config.json` (usually found in `~/Libr
       "command": "/path/to/your/gmail-mcp-server/target/release/gmail-mcp-server",
       "args": [],
       "env": {
-        "GOOGLE_CLIENT_SECRET": "{\"installed\":{...}}"
+        "GMAIL_USER": "your-email@gmail.com",
+        "GMAIL_APP_PASSWORD": "xxxx xxxx xxxx xxxx"
       }
     }
   }
 }
 ```
 
-*Note: Ensure you build with `cargo build --release` first to get the optimized binary.*
-
 ## Distribution
 
-### Option 1: Source (Recommended for Developers)
-Share this repository. The user runs:
-```bash
-cargo run
-```
+### Option 1: Source
+Share this repository. The user runs `cargo run`.
 
 ### Option 2: Binary
-1.  Build the release binary:
-    ```bash
-    cargo build --release
-    ```
-2.  The binary is located at `target/release/gmail-mcp-server`.
-3.  Share this single file. Users can run it directly, provided they set the `GOOGLE_CLIENT_SECRET` environment variable.
+1.  Build: `cargo build --release`
+2.  Share the binary at `target/release/gmail-mcp-server`.
+3.  Recipient sets env vars and runs it.
 
 ## Troubleshooting
 
-- **Authentication Fails**: Ensure `client_secret.json` or `GOOGLE_CLIENT_SECRET` is correct. The first time you run, it will open a browser to authenticate.
-- **Build Errors**: Check your internet connection (access to `crates.io` is required).
+- **Authentication Fails**: Ensure `GMAIL_APP_PASSWORD` is correct and does NOT include spaces (though `lettre` might handle them, it's safer to remove/quote them). Ensure 2FA is on.
+- **Build Errors**: Check internet connection.
